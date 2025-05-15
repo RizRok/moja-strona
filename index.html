@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8" />
+<title>Moja Aplikacja z Firebase</title>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+  import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD6MFrAFIjPbJ9lwQMoT9zk34fFNq17_wA",
+    authDomain: "sklep-080109.firebaseapp.com",
+    projectId: "sklep-080109",
+    storageBucket: "sklep-080109.firebasestorage.app",
+    messagingSenderId: "371250572329",
+    appId: "1:371250572329:web:cecc80de5c09649928c038",
+    measurementId: "G-B9PYSMCHBF"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  window.register = async () => {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      alert("Zarejestrowano użytkownika: " + userCredential.user.email);
+      // Dodaj użytkownika do Firestore
+      await setDoc(doc(db, "users", userCredential.user.uid), {
+        email: email,
+        blokowany: false,
+        isAdmin: false,
+        createdAt: new Date()
+      });
+    } catch (e) {
+      alert("Błąd rejestracji: " + e.message);
+    }
+  };
+
+  window.login = async () => {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      document.getElementById("userEmail").textContent = user.email;
+      document.getElementById("formularzLogowania").style.display = "none";
+      document.getElementById("panel").style.display = "block";
+
+      const docSnap = await getDoc(doc(db, "users", user.uid));
+      if(docSnap.exists()) {
+        const data = docSnap.data();
+        if(data.blokowany) {
+          alert("Twoje konto jest zablokowane!");
+          await signOut(auth);
+          location.reload();
+          return;
+        }
+        if(data.isAdmin) {
+          document.getElementById("adminPanel").style.display = "block";
+          loadAdminUsers();
+        } else {
+          document.getElementById("userPanel").style.display = "block";
+        }
+      }
+    } catch (e) {
+      alert("Błąd logowania: " + e.message);
+    }
+  };
+
+  window.logout = async () => {
+    await signOut(auth);
+    location.reload();
+  };
+
+  async function loadAdminUsers() {
+    const listaDiv = document.getElementById("listaUzytkownikow");
+    listaDiv.innerHTML = "<p>Ładowanie użytkowników...</p>";
+    const querySnapshot = await getDocs(collection(db, "users"));
+    listaDiv.innerHTML = "";
+    querySnapshot.forEach((docu) => {
+      const user = docu.data();
+      const div = document.createElement("div");
+      div.textContent = `${user.email} - zablokowany: ${user.blokowany}`;
+      const btn = document.createElement("button");
+      btn.textContent = user.blokowany ? "Odblokuj" : "Blokuj";
+      btn.onclick = async () => {
+        await updateDoc(doc(db, "users", docu.id), { blokowany: !user.blokowany });
+        loadAdminUsers();
+      };
+      div.appendChild(btn);
+      listaDiv.appendChild(div);
+    });
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    if(user) {
+      document.getElementById("userEmail").textContent = user.email;
+      document.getElementById("formularzLogowania").style.display = "none";
+      document.getElementById("panel").style.display = "block";
+      const docSnap = await getDoc(doc(db, "users", user.uid));
+      if(docSnap.exists()) {
+        const data = docSnap.data();
+        if(data.blokowany) {
+          alert("Twoje konto jest zablokowane!");
+          await signOut(auth);
+          location.reload();
+          return;
+        }
+        if(data.isAdmin) {
+          document.getElementById("adminPanel").style.display = "block";
+          loadAdminUsers();
+        } else {
+          document.getElementById("userPanel").style.display = "block";
+        }
+      }
+    } else {
+      document.getElementById("formularzLogowania").style.display = "block";
+      document.getElementById("panel").style.display = "none";
+      document.getElementById("adminPanel").style.display = "none";
+      document.getElementById("userPanel").style.display = "none";
+    }
+  });
+</script>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; }
+  #panel { display: none; margin-top: 20px; }
+  #adminPanel, #userPanel { display: none; margin-top: 10px; }
+  button { margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>Moja Aplikacja</h1>
+
+<div id="formularzLogowania">
+  <h3>Rejestracja / Logowanie</h3>
+  <input type="email" id="email" placeholder="E-mail" /><br/>
+  <input type="password" id="password" placeholder="Hasło" /><br/>
+  <button onclick="register()">Zarejestruj się</button>
+  <button onclick="login()">Zaloguj się</button>
+</div>
+
+<div id="panel">
+  <h2>Witaj, <span id="userEmail"></span></h2>
+  <button onclick="logout()">Wyloguj się</button>
+
+  <div id="adminPanel">
+    <h3>Panel Admina</h3>
+    <div id="listaUzytkownikow"></div>
+  </div>
+
+  <div id="userPanel">
+    <h3>Panel Użytkownika</h3>
+    <p>Tu możesz dodać swoje funkcje użytkownika.</p>
+  </div>
+</div>
+
+</body>
+</html>
