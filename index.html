@@ -1,163 +1,194 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8" />
-<title>Moja Aplikacja z Firebase</title>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-  import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyD6MFrAFIjPbJ9lwQMoT9zk34fFNq17_wA",
-    authDomain: "sklep-080109.firebaseapp.com",
-    projectId: "sklep-080109",
-    storageBucket: "sklep-080109.firebasestorage.app",
-    messagingSenderId: "371250572329",
-    appId: "1:371250572329:web:cecc80de5c09649928c038",
-    measurementId: "G-B9PYSMCHBF"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-
-  window.register = async () => {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      alert("Zarejestrowano użytkownika: " + userCredential.user.email);
-      // Dodaj użytkownika do Firestore
-      await setDoc(doc(db, "users", userCredential.user.uid), {
-        email: email,
-        blokowany: false,
-        isAdmin: false,
-        createdAt: new Date()
-      });
-    } catch (e) {
-      alert("Błąd rejestracji: " + e.message);
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Logowanie i Rejestracja</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
     }
-  };
-
-  window.login = async () => {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      document.getElementById("userEmail").textContent = user.email;
-      document.getElementById("formularzLogowania").style.display = "none";
-      document.getElementById("panel").style.display = "block";
-
-      const docSnap = await getDoc(doc(db, "users", user.uid));
-      if(docSnap.exists()) {
-        const data = docSnap.data();
-        if(data.blokowany) {
-          alert("Twoje konto jest zablokowane!");
-          await signOut(auth);
-          location.reload();
-          return;
-        }
-        if(data.isAdmin) {
-          document.getElementById("adminPanel").style.display = "block";
-          loadAdminUsers();
-        } else {
-          document.getElementById("userPanel").style.display = "block";
-        }
-      }
-    } catch (e) {
-      alert("Błąd logowania: " + e.message);
+    .container, #panel {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #aaa;
+      width: 320px;
+      text-align: center;
     }
-  };
-
-  window.logout = async () => {
-    await signOut(auth);
-    location.reload();
-  };
-
-  async function loadAdminUsers() {
-    const listaDiv = document.getElementById("listaUzytkownikow");
-    listaDiv.innerHTML = "<p>Ładowanie użytkowników...</p>";
-    const querySnapshot = await getDocs(collection(db, "users"));
-    listaDiv.innerHTML = "";
-    querySnapshot.forEach((docu) => {
-      const user = docu.data();
-      const div = document.createElement("div");
-      div.textContent = `${user.email} - zablokowany: ${user.blokowany}`;
-      const btn = document.createElement("button");
-      btn.textContent = user.blokowany ? "Odblokuj" : "Blokuj";
-      btn.onclick = async () => {
-        await updateDoc(doc(db, "users", docu.id), { blokowany: !user.blokowany });
-        loadAdminUsers();
-      };
-      div.appendChild(btn);
-      listaDiv.appendChild(div);
-    });
-  }
-
-  onAuthStateChanged(auth, async (user) => {
-    if(user) {
-      document.getElementById("userEmail").textContent = user.email;
-      document.getElementById("formularzLogowania").style.display = "none";
-      document.getElementById("panel").style.display = "block";
-      const docSnap = await getDoc(doc(db, "users", user.uid));
-      if(docSnap.exists()) {
-        const data = docSnap.data();
-        if(data.blokowany) {
-          alert("Twoje konto jest zablokowane!");
-          await signOut(auth);
-          location.reload();
-          return;
-        }
-        if(data.isAdmin) {
-          document.getElementById("adminPanel").style.display = "block";
-          loadAdminUsers();
-        } else {
-          document.getElementById("userPanel").style.display = "block";
-        }
-      }
-    } else {
-      document.getElementById("formularzLogowania").style.display = "block";
-      document.getElementById("panel").style.display = "none";
-      document.getElementById("adminPanel").style.display = "none";
-      document.getElementById("userPanel").style.display = "none";
+    input {
+      width: 90%;
+      padding: 10px;
+      margin: 8px 0;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
     }
-  });
-</script>
-<style>
-  body { font-family: Arial, sans-serif; padding: 20px; }
-  #panel { display: none; margin-top: 20px; }
-  #adminPanel, #userPanel { display: none; margin-top: 10px; }
-  button { margin-top: 10px; }
-</style>
+    button {
+      width: 95%;
+      padding: 10px;
+      margin: 8px 0;
+      font-size: 16px;
+      background-color: #2e86de;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #2164a8;
+    }
+    #message {
+      color: red;
+      min-height: 20px;
+      margin-top: 10px;
+    }
+    #adminPanel {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #2e86de;
+      border-radius: 5px;
+      background-color: #d0e4fd;
+    }
+  </style>
 </head>
 <body>
 
-<h1>Moja Aplikacja</h1>
-
-<div id="formularzLogowania">
-  <h3>Rejestracja / Logowanie</h3>
-  <input type="email" id="email" placeholder="E-mail" /><br/>
-  <input type="password" id="password" placeholder="Hasło" /><br/>
-  <button onclick="register()">Zarejestruj się</button>
-  <button onclick="login()">Zaloguj się</button>
-</div>
-
-<div id="panel">
-  <h2>Witaj, <span id="userEmail"></span></h2>
-  <button onclick="logout()">Wyloguj się</button>
-
-  <div id="adminPanel">
-    <h3>Panel Admina</h3>
-    <div id="listaUzytkownikow"></div>
+  <div class="container" id="authContainer">
+    <h1>Zaloguj się lub Zarejestruj</h1>
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Hasło" />
+    <button id="loginBtn">Zaloguj się</button>
+    <button id="registerBtn">Zarejestruj się</button>
+    <p id="message"></p>
   </div>
 
-  <div id="userPanel">
-    <h3>Panel Użytkownika</h3>
-    <p>Tu możesz dodać swoje funkcje użytkownika.</p>
+  <div id="panel" style="display:none">
+    <h2 id="welcome"></h2>
+    <div id="adminPanel" style="display:none">
+      <h3>Panel Administratora</h3>
+      <p>Tu będą dane admina i historia logowań (do zrobienia).</p>
+    </div>
+    <button id="logoutBtn">Wyloguj się</button>
   </div>
-</div>
 
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
+    import {
+      getAuth,
+      createUserWithEmailAndPassword,
+      signInWithEmailAndPassword,
+      onAuthStateChanged,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-auth.js";
+
+    // Konfiguracja Firebase - użyj swojego configu
+    const firebaseConfig = {
+      apiKey: "AIzaSyD6MFrAFIjPbJ9lwQMoT9zk34fFNq17_wA",
+      authDomain: "sklep-080109.firebaseapp.com",
+      projectId: "sklep-080109",
+      storageBucket: "sklep-080109.appspot.com",
+      messagingSenderId: "371250572329",
+      appId: "1:371250572329:web:cecc80de5c09649928c038",
+      measurementId: "G-B9PYSMCHBF"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // Elementy strony
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const loginBtn = document.getElementById("loginBtn");
+    const registerBtn = document.getElementById("registerBtn");
+    const message = document.getElementById("message");
+    const authContainer = document.getElementById("authContainer");
+    const panel = document.getElementById("panel");
+    const welcomeText = document.getElementById("welcome");
+    const adminPanel = document.getElementById("adminPanel");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    // Rejestracja
+    registerBtn.addEventListener("click", () => {
+      message.textContent = "";
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+
+      if (!email || !password) {
+        message.textContent = "Wpisz email i hasło!";
+        return;
+      }
+
+      createUserWithEmailAndPassword(auth, email, password)
+        .then(() => {
+          message.style.color = "green";
+          message.textContent = "Zarejestrowano pomyślnie! Możesz się teraz zalogować.";
+          emailInput.value = "";
+          passwordInput.value = "";
+        })
+        .catch(error => {
+          message.style.color = "red";
+          message.textContent = error.message;
+        });
+    });
+
+    // Logowanie
+    loginBtn.addEventListener("click", () => {
+      message.textContent = "";
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+
+      if (!email || !password) {
+        message.textContent = "Wpisz email i hasło!";
+        return;
+      }
+
+      signInWithEmailAndPassword(auth, email, password)
+        .then(() => {
+          message.textContent = "";
+        })
+        .catch(error => {
+          message.style.color = "red";
+          message.textContent = error.message;
+        });
+    });
+
+    // Wylogowanie
+    logoutBtn.addEventListener("click", () => {
+      signOut(auth);
+    });
+
+    // Obserwator zmiany stanu użytkownika
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        // Ukryj formularz logowania
+        authContainer.style.display = "none";
+        // Pokaż panel
+        panel.style.display = "block";
+        welcomeText.textContent = `Witaj, ${user.email}`;
+
+        // Jeśli admin — pokaż panel admina
+        if (user.email === "admin@admin.com") {
+          adminPanel.style.display = "block";
+        } else {
+          adminPanel.style.display = "none";
+        }
+      } else {
+        // Użytkownik wylogowany
+        authContainer.style.display = "block";
+        panel.style.display = "none";
+        message.textContent = "";
+        emailInput.value = "";
+        passwordInput.value = "";
+      }
+    });
+  </script>
 </body>
 </html>
